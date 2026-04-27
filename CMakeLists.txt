@@ -55,6 +55,9 @@ ExternalProject_Add(libpq_ext
                 <SOURCE_DIR>/src/include/postgres_ext.h
                 <INSTALL_DIR>/include/postgres_ext.h
         COMMAND ${CMAKE_COMMAND} -E copy
+                pg_config_ext.h
+                <INSTALL_DIR>/include/pg_config_ext.h
+        COMMAND ${CMAKE_COMMAND} -E copy
                 src/common/libpgcommon_shlib.a
                 <INSTALL_DIR>/lib/libpgcommon.a
         COMMAND ${CMAKE_COMMAND} -E copy
