@@ -81,3 +81,13 @@ WHERE username = $1
   AND password = $2
   AND role = 'mqtt_client';
 ```
+
+**Multiple tables** - authenticate human users and IoT devices from separate tables:
+
+```sql
+-- PG_QUERY
+SELECT 1 FROM users      WHERE username  = $1 AND password = $2
+UNION ALL
+SELECT 1 FROM iot_devices WHERE device_id = $1 AND password = $2
+LIMIT 1;
+```
