@@ -1,0 +1,32 @@
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: mqttauth
+      POSTGRES_PASSWORD: mqttauth
+      POSTGRES_DB: mqttauth
+    volumes:
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mqttauth"]
+      interval: 2s
+      timeout: 3s
+      retries: 10
+
+  mosquitto:
+    build: ./mosquitto
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ../build/mosquitto_pgsql_auth.so:/mosquitto/plugins/mosquitto_pgsql_auth.so:ro
+    environment:
+      PG_HOST: postgres
+      PG_PORT: "5432"
+      PG_DATABASE: mqttauth
+      PG_USERNAME: mqttauth
+      PG_PASSWORD: mqttauth
+      PG_QUERY: "SELECT 1 FROM mqtt_users WHERE username = $$1 AND password = $$2"
+    depends_on:
+      postgres:
+        condition: service_healthy
