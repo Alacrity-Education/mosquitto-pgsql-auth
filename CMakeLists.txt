@@ -103,12 +103,15 @@ target_compile_options(mosquitto_pgsql_auth PRIVATE -Wall -Wextra)
 
 # libpq/pgcommon/pgport are fully self-contained when built without openssl/gssapi/ldap:
 # no additional dynamic libraries needed in the container at runtime.
+find_package(Threads REQUIRED)
+
 target_link_libraries(mosquitto_pgsql_auth PRIVATE
     "-Wl,-Bstatic"
     "${PG_INST_DIR}/lib/libpq.a"
     "${PG_INST_DIR}/lib/libpgcommon.a"
     "${PG_INST_DIR}/lib/libpgport.a"
     "-Wl,-Bdynamic"
+    Threads::Threads
 )
 
 # ---- Install ----

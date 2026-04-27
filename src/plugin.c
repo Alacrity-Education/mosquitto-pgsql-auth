@@ -1,12 +1,14 @@
 #include <mosquitto/broker_plugin.h>
 #include <libpq-fe.h>
 
+#include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
 
 typedef struct {
-    PGconn *conn;
-    char   *query;
+    PGconn         *conn;
+    char           *query;
+    pthread_mutex_t lock;
 } plugin_state_t;
 
 MOSQUITTO_PLUGIN_DECLARE_VERSION(5);
@@ -42,8 +44,14 @@ int mosquitto_plugin_init(mosquitto_plugin_id_t *identifier, void **userdata,
     plugin_state_t *state = calloc(1, sizeof(plugin_state_t));
     if (!state) return MOSQ_ERR_NOMEM;
 
+    if (pthread_mutex_init(&state->lock, NULL) != 0) {
+        free(state);
+        return MOSQ_ERR_NOMEM;
+    }
+
     state->query = strdup(pg_query);
     if (!state->query) {
+        pthread_mutex_destroy(&state->lock);
         free(state);
         return MOSQ_ERR_NOMEM;
     }
@@ -72,6 +80,7 @@ int mosquitto_plugin_init(mosquitto_plugin_id_t *identifier, void **userdata,
                                          cb_basic_auth, NULL, state);
     if (rc) {
         PQfinish(state->conn);
+        pthread_mutex_destroy(&state->lock);
         free(state->query);
         free(state);
         return rc;
@@ -92,6 +101,7 @@ int mosquitto_plugin_cleanup(void *userdata, struct mosquitto_opt *options, int 
     if (!state) return MOSQ_ERR_SUCCESS;
 
     if (state->conn) PQfinish(state->conn);
+    pthread_mutex_destroy(&state->lock);
     free(state->query);
     free(state);
     return MOSQ_ERR_SUCCESS;
@@ -106,12 +116,15 @@ static int cb_basic_auth(int event, void *event_data, void *userdata)
 
     if (!auth->username || !auth->password) return MOSQ_ERR_AUTH;
 
+    pthread_mutex_lock(&state->lock);
+
     /* Recover from a dropped connection before querying */
     if (PQstatus(state->conn) != CONNECTION_OK) {
         PQreset(state->conn);
         if (PQstatus(state->conn) != CONNECTION_OK) {
             mosquitto_log_printf(MOSQ_LOG_ERR, "pgsql-auth: reconnect failed: %s",
                                  PQerrorMessage(state->conn));
+            pthread_mutex_unlock(&state->lock);
             return MOSQ_ERR_UNKNOWN;
         }
     }
@@ -120,6 +133,8 @@ static int cb_basic_auth(int event, void *event_data, void *userdata)
     const char *params[2] = { auth->username, auth->password };
     PGresult *res = PQexecParams(state->conn, state->query,
                                   2, NULL, params, NULL, NULL, 0);
+
+    pthread_mutex_unlock(&state->lock);
 
     if (PQresultStatus(res) != PGRES_TUPLES_OK) {
         mosquitto_log_printf(MOSQ_LOG_ERR, "pgsql-auth: query error: %s",
