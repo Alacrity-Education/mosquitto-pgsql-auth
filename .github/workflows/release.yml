@@ -1,0 +1,49 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+'
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            cmake \
+            perl \
+            bison \
+            flex \
+            libmosquitto-dev
+
+      - name: Cache PostgreSQL build
+        uses: actions/cache@v4
+        with:
+          path: |
+            build/libpq_ext-prefix
+            build/libpq-install
+          key: libpq-17.2-${{ runner.os }}
+
+      - name: Configure
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Create release
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            --title "Release ${{ github.ref_name }}" \
+            --generate-notes \
+            "build/mosquitto_pgsql_auth.so"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
