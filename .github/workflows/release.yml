@@ -30,7 +30,9 @@ jobs:
     steps:
       - name: Install git (musl)
         if: matrix.libc == 'musl'
-        run: apk add --no-cache git
+        run: |
+          apk add --no-cache git
+          git config --global --add safe.directory '*'
 
       - uses: actions/checkout@v4
 
