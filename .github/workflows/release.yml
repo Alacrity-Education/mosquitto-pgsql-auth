@@ -10,6 +10,7 @@ env:
 jobs:
   build:
     runs-on: ${{ matrix.runner }}
+    container: ${{ matrix.container }}
     permissions:
       contents: write
     strategy:
@@ -17,13 +18,28 @@ jobs:
         include:
           - runner: ubuntu-latest
             arch: x86_64
+            libc: glibc
           - runner: ubuntu-24.04-arm
             arch: arm64
+            libc: glibc
+          - runner: ubuntu-latest
+            arch: x86_64
+            libc: musl
+            container: alpine:3.21
+          - runner: ubuntu-24.04-arm
+            arch: arm64
+            libc: musl
+            container: alpine:3.21
 
     steps:
+      - name: Install git (musl)
+        if: matrix.libc == 'musl'
+        run: apk add --no-cache git
+
       - uses: actions/checkout@v4
 
-      - name: Install dependencies
+      - name: Install dependencies (glibc)
+        if: matrix.libc == 'glibc'
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -35,12 +51,34 @@ jobs:
             libcjson-dev \
             zlib1g-dev
 
-      - name: Install Mosquitto headers
+      - name: Install dependencies (musl)
+        if: matrix.libc == 'musl'
+        run: |
+          apk add --no-cache \
+            build-base \
+            cmake \
+            perl \
+            bison \
+            flex \
+            cjson-dev \
+            wget \
+            github-cli
+
+      - name: Install Mosquitto headers (glibc)
+        if: matrix.libc == 'glibc'
         run: |
           wget -qO /tmp/mosquitto.tar.gz \
             "https://github.com/eclipse-mosquitto/mosquitto/archive/refs/tags/v${MOSQ_VERSION}.tar.gz"
           tar -xzf /tmp/mosquitto.tar.gz -C /tmp
           sudo cp -r /tmp/mosquitto-${MOSQ_VERSION}/include/. /usr/local/include/
+
+      - name: Install Mosquitto headers (musl)
+        if: matrix.libc == 'musl'
+        run: |
+          wget -qO /tmp/mosquitto.tar.gz \
+            "https://github.com/eclipse-mosquitto/mosquitto/archive/refs/tags/v${MOSQ_VERSION}.tar.gz"
+          tar -xzf /tmp/mosquitto.tar.gz -C /tmp
+          cp -r /tmp/mosquitto-${MOSQ_VERSION}/include/. /usr/local/include/
 
       - name: Cache PostgreSQL build
         uses: actions/cache@v4
@@ -48,7 +86,7 @@ jobs:
           path: |
             build/libpq_ext-prefix
             build/libpq-install
-          key: libpq-17.2-${{ matrix.arch }}
+          key: libpq-17.2-${{ matrix.arch }}-${{ matrix.libc }}
 
       - name: Configure
         run: cmake -B build -DCMAKE_BUILD_TYPE=Release
@@ -58,8 +96,8 @@ jobs:
 
       - name: Upload to release
         run: |
-          cp build/mosquitto_pgsql_auth.so mosquitto_pgsql_auth-${{ matrix.arch }}.so
+          cp build/mosquitto_pgsql_auth.so mosquitto_pgsql_auth-${{ matrix.arch }}-${{ matrix.libc }}.so
           gh release upload "${{ github.event.release.tag_name }}" \
-            "mosquitto_pgsql_auth-${{ matrix.arch }}.so"
+            "mosquitto_pgsql_auth-${{ matrix.arch }}-${{ matrix.libc }}.so"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
