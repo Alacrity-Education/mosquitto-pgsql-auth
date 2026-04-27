@@ -58,7 +58,8 @@ jobs:
 
       - name: Upload to release
         run: |
+          cp build/mosquitto_pgsql_auth.so mosquitto_pgsql_auth-${{ matrix.arch }}.so
           gh release upload "${{ github.event.release.tag_name }}" \
-            "build/mosquitto_pgsql_auth.so#mosquitto_pgsql_auth-${{ matrix.arch }}.so"
+            "mosquitto_pgsql_auth-${{ matrix.arch }}.so"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
