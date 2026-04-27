@@ -17,7 +17,7 @@ services:
     image: alpine:3.21
     environment:
       PLUGIN_URL: https://github.com/Alacrity-Education/mosquitto-pgsql-auth/releases/latest/download/mosquitto_pgsql_auth-x86_64-musl.so
-    command: sh -c 'wget -qO /plugins/mosquitto_pgsql_auth.so "$$PLUGIN_URL"'
+    command: sh -c 'test -f /plugins/mosquitto_pgsql_auth.so || wget -qO /plugins/mosquitto_pgsql_auth.so "$$PLUGIN_URL"'
     volumes:
       - plugin:/plugins
 
