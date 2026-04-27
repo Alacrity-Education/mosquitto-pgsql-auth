@@ -26,10 +26,6 @@ jobs:
             arch: x86_64
             libc: musl
             container: alpine:3.21
-          - runner: ubuntu-24.04-arm
-            arch: arm64
-            libc: musl
-            container: alpine:3.21
 
     steps:
       - name: Install git (musl)
