@@ -39,6 +39,7 @@ ExternalProject_Add(libpq_ext
         --without-ldap
         --without-pam
         --without-openssl
+        --without-zlib
         --disable-nls
         CC=${CMAKE_C_COMPILER}
         CFLAGS=-std=gnu17

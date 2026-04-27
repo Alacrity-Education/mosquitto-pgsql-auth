@@ -30,7 +30,9 @@ jobs:
             cmake \
             perl \
             bison \
-            flex
+            flex \
+            libcjson-dev \
+            zlib1g-dev
 
       - name: Install Mosquitto headers
         run: |
