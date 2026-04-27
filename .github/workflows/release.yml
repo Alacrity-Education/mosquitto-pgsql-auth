@@ -5,6 +5,9 @@ on:
     tags:
       - 'v[0-9]+.[0-9]+'
 
+env:
+  MOSQ_VERSION: "2.1.2"
+
 jobs:
   build:
     runs-on: ${{ matrix.runner }}
@@ -27,8 +30,14 @@ jobs:
             cmake \
             perl \
             bison \
-            flex \
-            libmosquitto-dev
+            flex
+
+      - name: Install Mosquitto headers
+        run: |
+          wget -qO /tmp/mosquitto.tar.gz \
+            "https://github.com/eclipse-mosquitto/mosquitto/archive/refs/tags/v${MOSQ_VERSION}.tar.gz"
+          tar -xzf /tmp/mosquitto.tar.gz -C /tmp
+          sudo cp -r /tmp/mosquitto-${MOSQ_VERSION}/include/. /usr/local/include/
 
       - name: Cache PostgreSQL build
         uses: actions/cache@v4
